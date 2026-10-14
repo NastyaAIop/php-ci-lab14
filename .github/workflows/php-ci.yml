@@ -1,0 +1,84 @@
+name: PHP CI Lab 14
+
+on:
+  push:
+    branches: [main, 'lab14/**']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build_test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: dom, mbstring, xml, xmlwriter
+          tools: composer:v2
+          coverage: none
+
+      - name: Validate Composer files
+        run: composer validate --strict
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Check PHP syntax
+        run: find src public tests -name '*.php' -print0 | xargs -0 -n 1 php -l
+
+      - name: Run PHPUnit
+        run: |
+          mkdir -p build
+          php vendor/bin/phpunit --bootstrap vendor/autoload.php tests --log-junit build/junit.xml
+
+      - name: Upload test report
+        if: ${{ always() && hashFiles('build/junit.xml') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-report-${{ github.run_id }}-${{ github.run_attempt }}
+          path: build/junit.xml
+          if-no-files-found: error
+          retention-days: 7
+
+  package:
+    name: Package application
+    needs: build_test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: dom, mbstring, xml, xmlwriter
+          tools: composer:v2
+          coverage: none
+
+      - name: Install production dependencies
+        run: composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Create application archive
+        run: bash ci/package.sh
+
+      - name: Upload application archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: php-app-${{ github.sha }}-${{ github.run_attempt }}
+          path: dist/php-app.tar.gz
+          if-no-files-found: error
+          retention-days: 7
