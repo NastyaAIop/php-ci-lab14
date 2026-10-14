@@ -15,6 +15,6 @@ final class PriceCalculator
             );
         }
 
-        return $price + $quantity;
+        return $price * $quantity;
     }
 }
