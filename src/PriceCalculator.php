@@ -17,4 +17,19 @@ final class PriceCalculator
 
         return $price * $quantity;
     }
+
+    public function shipping(int $subtotal): int
+    {
+        if ($subtotal < 0) {
+            throw new InvalidArgumentException(
+                'Subtotal must be >= 0.'
+            );
+        }
+
+        if ($subtotal < 60000) {
+            return 6000;
+        }
+
+        return 0;
+    }
 }
